@@ -1,0 +1,218 @@
+---
+title: "Gene与CNE"
+output: html_document
+date: "2023-11-29"
+---
+
+```{r}
+library(ggplot2)
+```
+
+## 预处理
+```{r}
+dt<- read.table("CNE_mm9_GERP.bed")
+gerp_CNE<-data.frame(chrname=dt$V1,begin=dt$V2,end=dt$V3)
+CNE<-gerp_CNE[which(nchar(gerp_CNE$chrname)<=5),]
+head(CNE)
+```
+
+
+```{r}
+dt <- read.table("mm9.knownGene.gtf", sep = "\t", header = FALSE, quote = "")
+```
+
+```{r}
+Gene<-data.frame(chrname=dt$V1,begin=dt$V4,end=dt$V5)
+Gene<-Gene[which(nchar(Gene$chrname)<=5),]
+head(Gene)
+```
+
+
+
+```{r}
+write.table(CNE, "CNE.bed", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+write.table(Gene, "Gene.bed", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+```
+
+
+## Gene与CNE距离
+```{r}
+dt<-read.table("closest_dist.txt")
+CNE_Gene_dist<-data.frame(chr=dt$V1,dist=dt$V7)
+```
+
+### 总体
+```{r}
+
+hist(CNE_Gene_dist$dist[which(CNE_Gene_dist$dist<200000)],main = "distance between CNE and Gene",xlab="distance",ylab = "Frequency")
+```
+
+```{r}
+#基因沙漠
+length(CNE_Gene_dist$dist[which(CNE_Gene_dist$dist>2000000)])
+length(CNE_Gene_dist$dist[which(CNE_Gene_dist$dist>2000000)])/length(CNE_Gene_dist$dist)
+```
+
+```{r}
+#分位数
+quantiles <- quantile(CNE_Gene_dist$dist, probs = c(0.9, 0.95))
+
+# 输出结果
+print(quantiles)
+```
+
+```{r}
+ggplot(data.frame(x = CNE_Gene_dist$dist[which(CNE_Gene_dist$dist<10000)]), aes(x)) +
+  geom_density() +
+  labs(title = "Density Plot of Numbers", x = "Values", y = "Density")
+```
+
+```{r}
+# 将数据分割为长度为10的区间，并计算每个区间中的项数
+data_cut <- cut(CNE_Gene_dist$dist[which(CNE_Gene_dist$dist<10000)], breaks = seq(0, 10000, by = 10))
+data_table <- table(data_cut)
+
+# 转换为数据框
+data_df <- as.data.frame(data_table)
+names(data_df) <- c("Interval", "Count")
+
+# 绘制柱状图
+library(ggplot2)
+
+# 设置横坐标的间隔
+x_breaks <- seq(0, nrow(data_df), by = 100)
+x_labels <- c(0,1000,2000,3000,4000,5000,6000,7000,8000,9000,10000)
+
+# 将区间修改为结束值
+x_labels <- gsub(".*, (.*)", "\\1", x_labels)
+
+ggplot(data_df, aes(x = as.numeric(Interval), y = Count)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(x = "Distance between CNE and Gene", y = "Number of CNE-Gene pairs") +
+  theme(
+        axis.ticks.x = element_blank(),
+        axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16), 
+       panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),plot.title = element_text(size = 16, hjust = 0.5)) +
+  scale_x_continuous(breaks = x_breaks, labels = x_labels)
+ggsave("./CNE与Gene距离/CNE与Gene距离(All).png")
+```
+
+#### 拟合
+```{r}
+x<-seq(10, 10000, by = 10)
+y<-data_df$Count
+
+data_fit <- data.frame(x, y)
+
+p2<-ggplot(data_fit,aes(x,y))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of the distance between CNE and Gene",x="Distance between CNE and Gene",y="Numebr of CNE-Gene pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./CNE与Gene距离/CNE与Gene距离对数-对数拟合.png")
+```
+
+
+
+### chr1
+```{r}
+CNE_Gene_distance_chr1<-CNE_Gene_dist[which(CNE_Gene_dist$chr=="chr1"),]$dist
+data_cut <- cut(CNE_Gene_distance_chr1[which(CNE_Gene_distance_chr1<10000)], breaks = seq(0, 10000, by = 10))
+data_table <- table(data_cut)
+data_df <- as.data.frame(data_table)
+x<-seq(10, 10000, by = 10)
+y<-data_df$Freq
+data_fit <- data.frame(x, y)
+# 对数变换
+log_data_fit <- data.frame(log_x = log(x), log_y = log(y))
+
+# 移除 y 为零的数据点
+log_data_fit <- log_data_fit[log_data_fit$log_y != -Inf, ]
+
+# 用线性模型进行拟合
+lm_model_chr1 <- lm(log_y ~ log_x, data = log_data_fit)
+
+
+ggplot(log_data_fit, aes(x = log_x, y = log_y)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "red") +
+  labs(title = "Log-Log Linear Fit", x = "log(Distance)", y = "log(Count)") +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(size = 0.5, colour = "black")) 
+ggsave("./CNE与Gene距离拟合图/CNE与Gene距离对数-对数拟合(chr1).png")
+summary(lm_model_chr1)
+```
+
+```{r}
+log(10,10)
+```
+
+
+## 外显子内含子
+```{r}
+library(readxl)
+library(dplyr)
+```
+
+```{r}
+file_path <- "mousegene.csv"
+data <- read.csv(file_path)
+```
+
+```{r}
+# 提取基因位置信息
+genes_bed <- data %>%
+  select(chrom, txStart, txEnd)
+
+# 写入BED文件
+write.table(genes_bed, "genes.bed", sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE)
+
+```
+
+```{r}
+
+```
+
+```{r}
+# 加载必要的包
+library(tidyr)
+
+# 将外显子起始和终止位置分开为多个行
+exons_bed <- data %>%
+  # 分别将Exon_Start和Exon_End的逗号分隔的值展开为多行
+  separate_rows(exonStarts, exonEnds, sep = ",") %>%
+  # 选择染色体、外显子开始和结束列
+  select(chrom, exonStarts, exonEnds)
+
+# 将Exon_Start和Exon_End转换为数字
+exons_bed$exonStarts <- as.numeric(exons_bed$exonStarts)
+exons_bed$exonEnds <- as.numeric(exons_bed$exonEnds)
+
+exons_bed<-exons_bed[which(nchar(exons_bed$chrom)<=5),]
+# 写入外显子 BED 文件
+write.table(exons_bed, "exons.bed", sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE)
+
+```
+
+```{r}
+# 提取内含子位置信息
+introns_bed <- data %>%
+  select(chrom, cdsStart, cdsEnd)
+# 写入内含子 BED 文件
+introns_bed<-introns_bed[which(nchar(introns_bed$chrom)<=5),]
+write.table(introns_bed, "introns.bed", sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE)
+
+```
+
+
+
+
+
