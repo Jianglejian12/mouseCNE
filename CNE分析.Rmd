@@ -1,0 +1,2171 @@
+---
+title: "MouseCNE"
+output: html_document
+date: "2024-01-02"
+---
+
+## 缺失计算
+```{r}
+gerp_mm10<-length(readLines("out11.bed"))
+gerp_mm9<-length(readLines("out12.bed"))
+phast_mm10<-length(readLines("out21.bed"))
+phast_mm9<-length(readLines("out22.bed"))
+
+```
+
+```{r}
+(gerp_mm10-gerp_mm9)/gerp_mm10
+(phast_mm10-phast_mm9)/phast_mm10
+```
+
+## CNE在染色体的分布
+```{r}
+dt<- read.table("CNE_mm9_GERP.bed")
+gerp_CNE<-data.frame(chrname=dt$V1,begin=dt$V2,end=dt$V3)
+head(gerp_CNE)
+dt<- read.table("CNE_mm9_phast.bed")
+phast_CNE<-data.frame(chrname=dt$V1,begin=dt$V2,end=dt$V3)
+head(phast_CNE)
+```
+
+```{r}
+# 使用table函数计算每个不同元素出现的次数
+result <- table(gerp_CNE$chrname)
+
+# 将结果转换为数据框形式
+result_df <- as.data.frame(result)
+
+# 给数据框的列重新命名
+names(result_df) <- c("chr", "Count")
+
+# 输出结果
+print(result_df)
+
+# 使用grepl函数检查字符串列中是否包含"_"
+to_remove <- grepl("_", result_df$chr)
+
+# 过滤数据框，去除包含"_"的行
+filtered_df <- result_df[!to_remove, ]
+
+# 输出结果
+print(filtered_df)
+filtered_df2<- filtered_df[filtered_df$chr!="chrM",]
+
+print(filtered_df2)
+gerp_count<-filtered_df2
+
+write.csv(gerp_count, "CNEcount_GERP.csv", row.names = FALSE)
+```
+
+
+
+```{r}
+# 使用table函数计算每个不同元素出现的次数
+result <- table(phast_CNE$chrname)
+
+# 将结果转换为数据框形式
+result_df <- as.data.frame(result)
+
+# 给数据框的列重新命名
+names(result_df) <- c("chr", "Count")
+
+# 输出结果
+print(result_df)
+
+# 使用grepl函数检查字符串列中是否包含"_"
+to_remove <- grepl("_", result_df$chr)
+
+# 过滤数据框，去除包含"_"的行
+filtered_df <- result_df[!to_remove, ]
+
+# 输出结果
+print(filtered_df)
+filtered_df2<- filtered_df[filtered_df$chr!="chrM",]
+
+print(filtered_df2)
+phast_count<-filtered_df2
+
+write.csv(phast_count, "CNEcount_phastCons.csv", row.names = FALSE)
+```
+
+### 密度
+```{r}
+chr_length<-read.table("mm9.chrom.sizes.txt")
+colnames(chr_length)<-c("chr","length")
+merged_df <- merge(gerp_count, chr_length, by = "chr", all.x = TRUE)
+gerp_density<-merged_df$Count/merged_df$length
+gerp_CNE_density<-data.frame(chr=merged_df$chr,density=gerp_density)
+write.csv(gerp_CNE_density, "CNEdensity_GERP.csv", row.names = FALSE)
+
+merged_df <- merge(phast_count, chr_length, by = "chr", all.x = TRUE)
+phast_density<-merged_df$Count/merged_df$length
+phast_CNE_density<-data.frame(chr=merged_df$chr,density=phast_density)
+write.csv(phast_CNE_density, "CNEdensity_phastCons.csv", row.names = FALSE)
+```
+
+```{r}
+png("boxplot_GERP.png", width = 400, height = 600)
+boxplot(gerp_CNE_density$density, main="CNE density on each chromosome(GERP++)", 
+        ylab="Density", 
+        col="lightblue", 
+        border="black")
+dev.off() 
+```
+
+```{r}
+png("boxplot_phast.png", width = 400, height = 600)
+boxplot(phast_CNE_density$density, main="CNE density on each chromosome(phastcons)", 
+        ylab="Density", 
+        col="lightblue", 
+        border="black")
+dev.off() 
+```
+
+## 两种方式CNE长度分布
+```{r}
+dt<- read.table("CNE_mm9_GERP.bed")
+gerp_CNE<-data.frame(chr=dt$V1,begin=dt$V2,end=dt$V3)
+head(gerp_CNE)
+```
+
+
+
+```{r}
+library("dplyr")
+l<-gerp_CNE$end-gerp_CNE$begin
+gerp_CNE<-gerp_CNE %>%
+  mutate(length=l)
+```
+
+```{r}
+mean(l)
+sd(l)
+```
+
+
+```{r}
+png("Length distribution of CNE(GERP).png", width = 900, height = 600)  # 指定文件名和图像尺寸
+par(mar = c(5, 7, 4, 2) + 0.1,cex.lab = 2, cex.main = 2,cex.axis = 2) 
+hist(
+  gerp_CNE$length[gerp_CNE$length <= 2500],
+  main = "Length distribution of CNE(GERP)",
+  xlab = "CNE length",
+  ylab = "Count",
+  xlim = c(0, 2500),
+  breaks = seq(0, 2500, by = 50),
+  col = "skyblue"
+)
+options(scipen = 99999999)
+dev.off() 
+
+```
+
+```{r}
+dt<- read.table("CNE_mm9_phast.bed")
+phast_CNE<-data.frame(chr=dt$V1,begin=dt$V2,end=dt$V3)
+head(phast_CNE)
+```
+
+```{r}
+library("dplyr")
+l<-phast_CNE$end-phast_CNE$begin
+phast_CNE<-phast_CNE %>%
+  mutate(length=l)
+```
+
+```{r}
+mean(l)
+sd(l)
+```
+
+```{r}
+png("Length distribution of CNE(phast).png", width = 900, height = 600)  # 指定文件名和图像尺寸
+par(mar = c(5, 7, 4, 2) + 0.1,cex.lab = 2, cex.main = 2,cex.axis = 2) 
+hist(
+  phast_CNE$length[phast_CNE$length <= 2500],
+  main = "Length distribution of CNE(phast)",
+  xlab = "CNE length",
+  ylab = "Count",
+  xlim = c(0, 2500),
+  breaks = seq(0, 2500, by = 50),
+  col = "skyblue"
+)
+options(scipen = 99999999)
+dev.off() 
+
+```
+
+```{r}
+mean_GERP<-mean(gerp_CNE$length)
+sd_GERP<-var(gerp_CNE$length)
+mean_phast<-mean(phast_CNE$length)
+sd_phast<-var(phast_CNE$length)
+df<-data.frame(method=c("GERP","phast"),mean=c(mean_GERP,mean_phast),sd=c(sd_GERP,sd_phast))
+df
+```
+
+## CNE间隔分布
+
+```{r}
+library("dplyr")
+library("ggplot2")
+CNE_dist<-function(x1,x2,y1,y2)
+{
+  if(x2<y1){
+    d<-(y1-x2)}
+  else{
+    d<-(x1-y2)}
+  return(d)
+}
+k<-numeric(21)
+b<-numeric(21)
+chr_length<-read.table("mm9.chrom.sizes.txt")
+colnames(chr_length)<-c("chr","length")
+```
+
+### chr1
+```{r}
+CNE_chr1<-gerp_CNE[which(gerp_CNE$chr=="chr1"),]
+mid<-0.5*(CNE_chr1$end+CNE_chr1$begin)
+CNE_chr1<-CNE_chr1 %>%
+  mutate(mid=mid)
+CNE_chr1<-CNE_chr1[order(CNE_chr1$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr1$begin)-1))
+{
+  d<-CNE_dist(CNE_chr1$begin[i],CNE_chr1$end[i],CNE_chr1$begin[i+1],CNE_chr1$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr1<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr1[(which(S_NS_chr1$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr1",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr1_fit.png",dpi = 300)
+
+y<-log(S_NS_chr1[(which(S_NS_chr1$S>=100)),]$NS)
+x<-log(S_NS_chr1[(which(S_NS_chr1$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[1]<-fit$coefficients[1]
+k[1]<-fit$coefficients[2]
+```
+
+```{r}
+CNE_chr1$length<-(CNE_chr1$end-CNE_chr1$begin)
+length_CNE_chr1<-sum(CNE_chr1$length)
+num_CNE_chr1<-length(CNE_chr1$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr1"),]$length - length_CNE_chr1 + 1), num_CNE_chr1)
+begin<-fragment_positions
+end<-begin+CNE_chr1$length
+length<-CNE_chr1$length
+mid<-0.5*(begin+end)
+random_CNE_chr1<-data.frame(begin,end,length,mid)
+
+random_CNE_chr1<-random_CNE_chr1[order(random_CNE_chr1$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr1$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr1$begin[i],random_CNE_chr1$end[i],random_CNE_chr1$begin[i+1],random_CNE_chr1$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr1<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr1[(which(S_NS_random_chr1$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on ch1",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr1_random.png",dpi = 300)
+
+x<-S_NS_chr1[(which(S_NS_chr1$S>=100)),]$S
+y1<-S_NS_chr1[(which(S_NS_chr1$S>=100)),]$NS
+y2<-S_NS_random_chr1[(which(S_NS_random_chr1$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 1")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr1_combined.png",dpi = 300)
+```
+
+### chr2
+```{r}
+CNE_chr2<-gerp_CNE[which(gerp_CNE$chr=="chr2"),]
+mid<-0.5*(CNE_chr2$end+CNE_chr2$begin)
+CNE_chr2<-CNE_chr2 %>%
+  mutate(mid=mid)
+CNE_chr2<-CNE_chr2[order(CNE_chr2$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr2$begin)-1))
+{
+  d<-CNE_dist(CNE_chr2$begin[i],CNE_chr2$end[i],CNE_chr2$begin[i+1],CNE_chr2$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr2<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr2[(which(S_NS_chr2$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr2",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr2_fit.png",dpi = 300)
+
+y<-log(S_NS_chr2[(which(S_NS_chr2$S>=100)),]$NS)
+x<-log(S_NS_chr2[(which(S_NS_chr2$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[2]<-fit$coefficients[1]
+k[2]<-fit$coefficients[2]
+
+CNE_chr2$length<-(CNE_chr2$end-CNE_chr2$begin)
+length_CNE_chr2<-sum(CNE_chr2$length)
+num_CNE_chr2<-length(CNE_chr2$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr2"),]$length - length_CNE_chr2 + 1), num_CNE_chr2)
+begin<-fragment_positions
+end<-begin+CNE_chr2$length
+length<-CNE_chr2$length
+mid<-0.5*(begin+end)
+random_CNE_chr2<-data.frame(begin,end,length,mid)
+
+random_CNE_chr2<-random_CNE_chr2[order(random_CNE_chr2$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr2$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr2$begin[i],random_CNE_chr2$end[i],random_CNE_chr2$begin[i+1],random_CNE_chr2$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr2<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr2[(which(S_NS_random_chr2$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 2",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr2_random.png",dpi = 300)
+
+x<-S_NS_chr2[(which(S_NS_chr2$S>=100)),]$S
+y1<-S_NS_chr2[(which(S_NS_chr2$S>=100)),]$NS
+y2<-S_NS_random_chr2[(which(S_NS_random_chr2$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 2")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr2_combined.png",dpi = 300)
+```
+
+### chr3
+```{r}
+CNE_chr3<-gerp_CNE[which(gerp_CNE$chr=="chr3"),]
+mid<-0.5*(CNE_chr3$end+CNE_chr3$begin)
+CNE_chr3<-CNE_chr3 %>%
+  mutate(mid=mid)
+CNE_chr3<-CNE_chr3[order(CNE_chr3$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr3$begin)-1))
+{
+  d<-CNE_dist(CNE_chr3$begin[i],CNE_chr3$end[i],CNE_chr3$begin[i+1],CNE_chr3$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr3<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr3[(which(S_NS_chr3$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr w3",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr3_fit.png",dpi = 300)
+
+y<-log(S_NS_chr3[(which(S_NS_chr3$S>=100)),]$NS)
+x<-log(S_NS_chr3[(which(S_NS_chr3$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[3]<-fit$coefficients[1]
+k[3]<-fit$coefficients[2]
+
+CNE_chr3$length<-(CNE_chr3$end-CNE_chr3$begin)
+length_CNE_chr3<-sum(CNE_chr3$length)
+num_CNE_chr3<-length(CNE_chr3$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr3"),]$length - length_CNE_chr3 + 1), num_CNE_chr3)
+begin<-fragment_positions
+end<-begin+CNE_chr3$length
+length<-CNE_chr3$length
+mid<-0.5*(begin+end)
+random_CNE_chr3<-data.frame(begin,end,length,mid)
+
+random_CNE_chr3<-random_CNE_chr3[order(random_CNE_chr3$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr3$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr3$begin[i],random_CNE_chr3$end[i],random_CNE_chr3$begin[i+1],random_CNE_chr3$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr3<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr3[(which(S_NS_random_chr3$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 3",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr3_random.png",dpi = 300)
+
+x<-S_NS_chr3[(which(S_NS_chr3$S>=100)),]$S
+y1<-S_NS_chr3[(which(S_NS_chr3$S>=100)),]$NS
+y2<-S_NS_random_chr3[(which(S_NS_random_chr3$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 3")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr3_combined.png",dpi = 300)
+```
+
+### chr4
+```{r}
+CNE_chr4<-gerp_CNE[which(gerp_CNE$chr=="chr4"),]
+mid<-0.5*(CNE_chr4$end+CNE_chr4$begin)
+CNE_chr4<-CNE_chr4 %>%
+  mutate(mid=mid)
+CNE_chr4<-CNE_chr4[order(CNE_chr4$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr4$begin)-1))
+{
+  d<-CNE_dist(CNE_chr4$begin[i],CNE_chr4$end[i],CNE_chr4$begin[i+1],CNE_chr4$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr4<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr4[(which(S_NS_chr4$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr4",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr4_fit.png",dpi = 300)
+
+y<-log(S_NS_chr4[(which(S_NS_chr4$S>=100)),]$NS)
+x<-log(S_NS_chr4[(which(S_NS_chr4$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[4]<-fit$coefficients[1]
+k[4]<-fit$coefficients[2]
+
+CNE_chr4$length<-(CNE_chr4$end-CNE_chr4$begin)
+length_CNE_chr4<-sum(CNE_chr4$length)
+num_CNE_chr4<-length(CNE_chr4$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr4"),]$length - length_CNE_chr4 + 1), num_CNE_chr4)
+begin<-fragment_positions
+end<-begin+CNE_chr4$length
+length<-CNE_chr4$length
+mid<-0.5*(begin+end)
+random_CNE_chr4<-data.frame(begin,end,length,mid)
+
+random_CNE_chr4<-random_CNE_chr4[order(random_CNE_chr4$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr4$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr4$begin[i],random_CNE_chr4$end[i],random_CNE_chr4$begin[i+1],random_CNE_chr4$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr4<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr4[(which(S_NS_random_chr4$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 4",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr4_random.png",dpi = 300)
+
+x<-S_NS_chr4[(which(S_NS_chr4$S>=100)),]$S
+y1<-S_NS_chr4[(which(S_NS_chr4$S>=100)),]$NS
+y2<-S_NS_random_chr4[(which(S_NS_random_chr4$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 4")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr4_combined.png",dpi = 300)
+```
+
+### chr5
+```{r}
+CNE_chr5<-gerp_CNE[which(gerp_CNE$chr=="chr5"),]
+mid<-0.5*(CNE_chr5$end+CNE_chr5$begin)
+CNE_chr5<-CNE_chr5 %>%
+  mutate(mid=mid)
+CNE_chr5<-CNE_chr5[order(CNE_chr5$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr5$begin)-1))
+{
+  d<-CNE_dist(CNE_chr5$begin[i],CNE_chr5$end[i],CNE_chr5$begin[i+1],CNE_chr5$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr5<-data.frame(S=x,NS=ds)
+
+
+p2<-ggplot(S_NS_chr5[(which(S_NS_chr5$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr5",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr5_fit.png",dpi = 300)
+
+y<-log(S_NS_chr5[(which(S_NS_chr5$S>=100)),]$NS)
+x<-log(S_NS_chr5[(which(S_NS_chr5$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[5]<-fit$coefficients[1]
+k[5]<-fit$coefficients[2]
+
+CNE_chr5$length<-(CNE_chr5$end-CNE_chr5$begin)
+length_CNE_chr5<-sum(CNE_chr5$length)
+num_CNE_chr5<-length(CNE_chr5$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr5"),]$length - length_CNE_chr5 + 1), num_CNE_chr5)
+begin<-fragment_positions
+end<-begin+CNE_chr5$length
+length<-CNE_chr5$length
+mid<-0.5*(begin+end)
+random_CNE_chr5<-data.frame(begin,end,length,mid)
+
+random_CNE_chr5<-random_CNE_chr5[order(random_CNE_chr5$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr5$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr5$begin[i],random_CNE_chr5$end[i],random_CNE_chr5$begin[i+1],random_CNE_chr5$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr5<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr5[(which(S_NS_random_chr5$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 5",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr5_random.png",dpi = 300)
+
+x<-S_NS_chr5[(which(S_NS_chr5$S>=100)),]$S
+y1<-S_NS_chr5[(which(S_NS_chr5$S>=100)),]$NS
+y2<-S_NS_random_chr5[(which(S_NS_random_chr5$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 5")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr5_combined.png",dpi = 300)
+```
+
+### chr6
+```{r}
+CNE_chr6<-gerp_CNE[which(gerp_CNE$chr=="chr6"),]
+mid<-0.5*(CNE_chr6$end+CNE_chr6$begin)
+CNE_chr6<-CNE_chr6 %>%
+  mutate(mid=mid)
+CNE_chr6<-CNE_chr6[order(CNE_chr6$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr6$begin)-1))
+{
+  d<-CNE_dist(CNE_chr6$begin[i],CNE_chr6$end[i],CNE_chr6$begin[i+1],CNE_chr6$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr6<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr6[(which(S_NS_chr6$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr6",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr6_fit.png",dpi = 300)
+
+y<-log(S_NS_chr6[(which(S_NS_chr6$S>=100)),]$NS)
+x<-log(S_NS_chr6[(which(S_NS_chr6$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[6]<-fit$coefficients[1]
+k[6]<-fit$coefficients[2]
+
+CNE_chr6$length<-(CNE_chr6$end-CNE_chr6$begin)
+length_CNE_chr6<-sum(CNE_chr6$length)
+num_CNE_chr6<-length(CNE_chr6$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr6"),]$length - length_CNE_chr6 + 1), num_CNE_chr6)
+begin<-fragment_positions
+end<-begin+CNE_chr6$length
+length<-CNE_chr6$length
+mid<-0.5*(begin+end)
+random_CNE_chr6<-data.frame(begin,end,length,mid)
+
+random_CNE_chr6<-random_CNE_chr6[order(random_CNE_chr6$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr6$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr6$begin[i],random_CNE_chr6$end[i],random_CNE_chr6$begin[i+1],random_CNE_chr6$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr6<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr6[(which(S_NS_random_chr6$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 6",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr6_random.png",dpi = 300)
+
+x<-S_NS_chr6[(which(S_NS_chr6$S>=100)),]$S
+y1<-S_NS_chr6[(which(S_NS_chr6$S>=100)),]$NS
+y2<-S_NS_random_chr6[(which(S_NS_random_chr6$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 6")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr6_combined.png",dpi = 300)
+```
+
+### chr7
+```{r}
+CNE_chr7<-gerp_CNE[which(gerp_CNE$chr=="chr7"),]
+mid<-0.5*(CNE_chr7$end+CNE_chr7$begin)
+CNE_chr7<-CNE_chr7 %>%
+  mutate(mid=mid)
+CNE_chr7<-CNE_chr7[order(CNE_chr7$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr7$begin)-1))
+{
+  d<-CNE_dist(CNE_chr7$begin[i],CNE_chr7$end[i],CNE_chr7$begin[i+1],CNE_chr7$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr7<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr7[(which(S_NS_chr7$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr7",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr7_fit.png",dpi = 300)
+
+y<-log(S_NS_chr7[(which(S_NS_chr7$S>=100)),]$NS)
+x<-log(S_NS_chr7[(which(S_NS_chr7$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[7]<-fit$coefficients[1]
+k[7]<-fit$coefficients[2]
+
+CNE_chr7$length<-(CNE_chr7$end-CNE_chr7$begin)
+length_CNE_chr7<-sum(CNE_chr7$length)
+num_CNE_chr7<-length(CNE_chr7$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr7"),]$length - length_CNE_chr7 + 1), num_CNE_chr7)
+begin<-fragment_positions
+end<-begin+CNE_chr7$length
+length<-CNE_chr7$length
+mid<-0.5*(begin+end)
+random_CNE_chr7<-data.frame(begin,end,length,mid)
+
+random_CNE_chr7<-random_CNE_chr7[order(random_CNE_chr7$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr7$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr7$begin[i],random_CNE_chr7$end[i],random_CNE_chr7$begin[i+1],random_CNE_chr7$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr7<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr7[(which(S_NS_random_chr7$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 7",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr7_random.png",dpi = 300)
+
+x<-S_NS_chr7[(which(S_NS_chr7$S>=100)),]$S
+y1<-S_NS_chr7[(which(S_NS_chr7$S>=100)),]$NS
+y2<-S_NS_random_chr7[(which(S_NS_random_chr7$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 7")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr7_combined.png",dpi = 300)
+```
+
+### chr8
+```{r}
+CNE_chr8<-gerp_CNE[which(gerp_CNE$chr=="chr8"),]
+mid<-0.5*(CNE_chr8$end+CNE_chr8$begin)
+CNE_chr8<-CNE_chr8 %>%
+  mutate(mid=mid)
+CNE_chr8<-CNE_chr8[order(CNE_chr8$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr8$begin)-1))
+{
+  d<-CNE_dist(CNE_chr8$begin[i],CNE_chr8$end[i],CNE_chr8$begin[i+1],CNE_chr8$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr8<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr8[(which(S_NS_chr8$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr8",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr8_fit.png",dpi = 300)
+
+y<-log(S_NS_chr8[(which(S_NS_chr8$S>=100)),]$NS)
+x<-log(S_NS_chr8[(which(S_NS_chr8$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[8]<-fit$coefficients[1]
+k[8]<-fit$coefficients[2]
+
+CNE_chr8$length<-(CNE_chr8$end-CNE_chr8$begin)
+length_CNE_chr8<-sum(CNE_chr8$length)
+num_CNE_chr8<-length(CNE_chr8$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr8"),]$length - length_CNE_chr8 + 1), num_CNE_chr8)
+begin<-fragment_positions
+end<-begin+CNE_chr8$length
+length<-CNE_chr8$length
+mid<-0.5*(begin+end)
+random_CNE_chr8<-data.frame(begin,end,length,mid)
+
+random_CNE_chr8<-random_CNE_chr8[order(random_CNE_chr8$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr8$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr8$begin[i],random_CNE_chr8$end[i],random_CNE_chr8$begin[i+1],random_CNE_chr8$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr8<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr8[(which(S_NS_random_chr8$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 8",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr8_random.png",dpi = 300)
+
+x<-S_NS_chr8[(which(S_NS_chr8$S>=100)),]$S
+y1<-S_NS_chr8[(which(S_NS_chr8$S>=100)),]$NS
+y2<-S_NS_random_chr8[(which(S_NS_random_chr8$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 8")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr8_combined.png",dpi = 300)
+```
+
+### chr9
+```{r}
+CNE_chr9<-gerp_CNE[which(gerp_CNE$chr=="chr9"),]
+mid<-0.5*(CNE_chr9$end+CNE_chr9$begin)
+CNE_chr9<-CNE_chr9 %>%
+  mutate(mid=mid)
+CNE_chr9<-CNE_chr9[order(CNE_chr9$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr9$begin)-1))
+{
+  d<-CNE_dist(CNE_chr9$begin[i],CNE_chr9$end[i],CNE_chr9$begin[i+1],CNE_chr9$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr9<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr9[(which(S_NS_chr9$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr9",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr9_fit.png",dpi = 300)
+
+y<-log(S_NS_chr9[(which(S_NS_chr9$S>=100)),]$NS)
+x<-log(S_NS_chr9[(which(S_NS_chr9$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[9]<-fit$coefficients[1]
+k[9]<-fit$coefficients[2]
+
+CNE_chr9$length<-(CNE_chr9$end-CNE_chr9$begin)
+length_CNE_chr9<-sum(CNE_chr9$length)
+num_CNE_chr9<-length(CNE_chr9$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr9"),]$length - length_CNE_chr9 + 1), num_CNE_chr9)
+begin<-fragment_positions
+end<-begin+CNE_chr9$length
+length<-CNE_chr9$length
+mid<-0.5*(begin+end)
+random_CNE_chr9<-data.frame(begin,end,length,mid)
+
+random_CNE_chr9<-random_CNE_chr9[order(random_CNE_chr9$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr9$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr9$begin[i],random_CNE_chr9$end[i],random_CNE_chr9$begin[i+1],random_CNE_chr9$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr9<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr9[(which(S_NS_random_chr9$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 9",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr9_random.png",dpi = 300)
+
+x<-S_NS_chr9[(which(S_NS_chr9$S>=100)),]$S
+y1<-S_NS_chr9[(which(S_NS_chr9$S>=100)),]$NS
+y2<-S_NS_random_chr9[(which(S_NS_random_chr9$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 9")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr9_combined.png",dpi = 300)
+```
+
+### chr10
+```{r}
+CNE_chr10<-gerp_CNE[which(gerp_CNE$chr=="chr10"),]
+mid<-0.5*(CNE_chr10$end+CNE_chr10$begin)
+CNE_chr10<-CNE_chr10 %>%
+  mutate(mid=mid)
+CNE_chr10<-CNE_chr10[order(CNE_chr10$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr10$begin)-1))
+{
+  d<-CNE_dist(CNE_chr10$begin[i],CNE_chr10$end[i],CNE_chr10$begin[i+1],CNE_chr10$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr10<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr10[(which(S_NS_chr10$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr10",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr10_fit.png",dpi = 300)
+
+y<-log(S_NS_chr10[(which(S_NS_chr10$S>=100)),]$NS)
+x<-log(S_NS_chr10[(which(S_NS_chr10$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[10]<-fit$coefficients[1]
+k[10]<-fit$coefficients[2]
+
+CNE_chr10$length<-(CNE_chr10$end-CNE_chr10$begin)
+length_CNE_chr10<-sum(CNE_chr10$length)
+num_CNE_chr10<-length(CNE_chr10$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr10"),]$length - length_CNE_chr10 + 1), num_CNE_chr10)
+begin<-fragment_positions
+end<-begin+CNE_chr10$length
+length<-CNE_chr10$length
+mid<-0.5*(begin+end)
+random_CNE_chr10<-data.frame(begin,end,length,mid)
+
+random_CNE_chr10<-random_CNE_chr10[order(random_CNE_chr10$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr10$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr10$begin[i],random_CNE_chr10$end[i],random_CNE_chr10$begin[i+1],random_CNE_chr10$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr10<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr10[(which(S_NS_random_chr10$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 10",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr10_random.png",dpi = 300)
+
+x<-S_NS_chr10[(which(S_NS_chr10$S>=100)),]$S
+y1<-S_NS_chr10[(which(S_NS_chr10$S>=100)),]$NS
+y2<-S_NS_random_chr10[(which(S_NS_random_chr10$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 10")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr10_combined.png",dpi = 300)
+```
+
+### chr11
+```{r}
+CNE_chr11<-gerp_CNE[which(gerp_CNE$chr=="chr11"),]
+mid<-0.5*(CNE_chr11$end+CNE_chr11$begin)
+CNE_chr11<-CNE_chr11 %>%
+  mutate(mid=mid)
+CNE_chr11<-CNE_chr11[order(CNE_chr11$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr11$begin)-1))
+{
+  d<-CNE_dist(CNE_chr11$begin[i],CNE_chr11$end[i],CNE_chr11$begin[i+1],CNE_chr11$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr11<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr11[(which(S_NS_chr11$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr11",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr11_fit.png",dpi = 300)
+
+y<-log(S_NS_chr11[(which(S_NS_chr11$S>=100)),]$NS)
+x<-log(S_NS_chr11[(which(S_NS_chr11$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[11]<-fit$coefficients[1]
+k[11]<-fit$coefficients[2]
+
+CNE_chr11$length<-(CNE_chr11$end-CNE_chr11$begin)
+length_CNE_chr11<-sum(CNE_chr11$length)
+num_CNE_chr11<-length(CNE_chr11$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr11"),]$length - length_CNE_chr11 + 1), num_CNE_chr11)
+begin<-fragment_positions
+end<-begin+CNE_chr11$length
+length<-CNE_chr11$length
+mid<-0.5*(begin+end)
+random_CNE_chr11<-data.frame(begin,end,length,mid)
+
+random_CNE_chr11<-random_CNE_chr11[order(random_CNE_chr11$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr11$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr11$begin[i],random_CNE_chr11$end[i],random_CNE_chr11$begin[i+1],random_CNE_chr11$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr11<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr11[(which(S_NS_random_chr11$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 11",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr11_random.png",dpi = 300)
+
+x<-S_NS_chr11[(which(S_NS_chr11$S>=100)),]$S
+y1<-S_NS_chr11[(which(S_NS_chr11$S>=100)),]$NS
+y2<-S_NS_random_chr11[(which(S_NS_random_chr11$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 11")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr11_combined.png",dpi = 300)
+```
+
+### chr12
+```{r}
+CNE_chr12<-gerp_CNE[which(gerp_CNE$chr=="chr12"),]
+mid<-0.5*(CNE_chr12$end+CNE_chr12$begin)
+CNE_chr12<-CNE_chr12 %>%
+  mutate(mid=mid)
+CNE_chr12<-CNE_chr12[order(CNE_chr12$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr12$begin)-1))
+{
+  d<-CNE_dist(CNE_chr12$begin[i],CNE_chr12$end[i],CNE_chr12$begin[i+1],CNE_chr12$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr12<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr12[(which(S_NS_chr12$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr12",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr12_fit.png",dpi = 300)
+
+y<-log(S_NS_chr12[(which(S_NS_chr12$S>=100)),]$NS)
+x<-log(S_NS_chr12[(which(S_NS_chr12$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[12]<-fit$coefficients[1]
+k[12]<-fit$coefficients[2]
+
+CNE_chr12$length<-(CNE_chr12$end-CNE_chr12$begin)
+length_CNE_chr12<-sum(CNE_chr12$length)
+num_CNE_chr12<-length(CNE_chr12$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr12"),]$length - length_CNE_chr12 + 1), num_CNE_chr12)
+begin<-fragment_positions
+end<-begin+CNE_chr12$length
+length<-CNE_chr12$length
+mid<-0.5*(begin+end)
+random_CNE_chr12<-data.frame(begin,end,length,mid)
+
+random_CNE_chr12<-random_CNE_chr12[order(random_CNE_chr12$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr12$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr12$begin[i],random_CNE_chr12$end[i],random_CNE_chr12$begin[i+1],random_CNE_chr12$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr12<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr12[(which(S_NS_random_chr12$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 12",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr12_random.png",dpi = 300)
+
+x<-S_NS_chr12[(which(S_NS_chr12$S>=100)),]$S
+y1<-S_NS_chr12[(which(S_NS_chr12$S>=100)),]$NS
+y2<-S_NS_random_chr12[(which(S_NS_random_chr12$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 12")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr12_combined.png",dpi = 300)
+```
+
+### chr13
+```{r}
+CNE_chr13<-gerp_CNE[which(gerp_CNE$chr=="chr13"),]
+mid<-0.5*(CNE_chr13$end+CNE_chr13$begin)
+CNE_chr13<-CNE_chr13 %>%
+  mutate(mid=mid)
+CNE_chr13<-CNE_chr13[order(CNE_chr13$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr13$begin)-1))
+{
+  d<-CNE_dist(CNE_chr13$begin[i],CNE_chr13$end[i],CNE_chr13$begin[i+1],CNE_chr13$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr13<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr13[(which(S_NS_chr13$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr13",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr13_fit.png",dpi = 300)
+
+y<-log(S_NS_chr13[(which(S_NS_chr13$S>=100)),]$NS)
+x<-log(S_NS_chr13[(which(S_NS_chr13$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[13]<-fit$coefficients[1]
+k[13]<-fit$coefficients[2]
+
+CNE_chr13$length<-(CNE_chr13$end-CNE_chr13$begin)
+length_CNE_chr13<-sum(CNE_chr13$length)
+num_CNE_chr13<-length(CNE_chr13$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr13"),]$length - length_CNE_chr13 + 1), num_CNE_chr13)
+begin<-fragment_positions
+end<-begin+CNE_chr13$length
+length<-CNE_chr13$length
+mid<-0.5*(begin+end)
+random_CNE_chr13<-data.frame(begin,end,length,mid)
+
+random_CNE_chr13<-random_CNE_chr13[order(random_CNE_chr13$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr13$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr13$begin[i],random_CNE_chr13$end[i],random_CNE_chr13$begin[i+1],random_CNE_chr13$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr13<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr13[(which(S_NS_random_chr13$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 13",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr13_random.png",dpi = 300)
+
+x<-S_NS_chr13[(which(S_NS_chr13$S>=100)),]$S
+y1<-S_NS_chr13[(which(S_NS_chr13$S>=100)),]$NS
+y2<-S_NS_random_chr13[(which(S_NS_random_chr13$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 13")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr13_combined.png",dpi = 300)
+```
+
+### chr14
+```{r}
+CNE_chr14<-gerp_CNE[which(gerp_CNE$chr=="chr14"),]
+mid<-0.5*(CNE_chr14$end+CNE_chr14$begin)
+CNE_chr14<-CNE_chr14 %>%
+  mutate(mid=mid)
+CNE_chr14<-CNE_chr14[order(CNE_chr14$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr14$begin)-1))
+{
+  d<-CNE_dist(CNE_chr14$begin[i],CNE_chr14$end[i],CNE_chr14$begin[i+1],CNE_chr14$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr14<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr14[(which(S_NS_chr14$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr14",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr14_fit.png",dpi = 300)
+
+y<-log(S_NS_chr14[(which(S_NS_chr14$S>=100)),]$NS)
+x<-log(S_NS_chr14[(which(S_NS_chr14$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[14]<-fit$coefficients[1]
+k[14]<-fit$coefficients[2]
+
+CNE_chr14$length<-(CNE_chr14$end-CNE_chr14$begin)
+length_CNE_chr14<-sum(CNE_chr14$length)
+num_CNE_chr14<-length(CNE_chr14$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr14"),]$length - length_CNE_chr14 + 1), num_CNE_chr14)
+begin<-fragment_positions
+end<-begin+CNE_chr14$length
+length<-CNE_chr14$length
+mid<-0.5*(begin+end)
+random_CNE_chr14<-data.frame(begin,end,length,mid)
+
+random_CNE_chr14<-random_CNE_chr14[order(random_CNE_chr14$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr14$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr14$begin[i],random_CNE_chr14$end[i],random_CNE_chr14$begin[i+1],random_CNE_chr14$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr14<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr14[(which(S_NS_random_chr14$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 14",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr14_random.png",dpi = 300)
+
+x<-S_NS_chr14[(which(S_NS_chr14$S>=100)),]$S
+y1<-S_NS_chr14[(which(S_NS_chr14$S>=100)),]$NS
+y2<-S_NS_random_chr14[(which(S_NS_random_chr14$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 14")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr14_combined.png",dpi = 300)
+```
+
+### chr15
+```{r}
+CNE_chr15<-gerp_CNE[which(gerp_CNE$chr=="chr15"),]
+mid<-0.5*(CNE_chr15$end+CNE_chr15$begin)
+CNE_chr15<-CNE_chr15 %>%
+  mutate(mid=mid)
+CNE_chr15<-CNE_chr15[order(CNE_chr15$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr15$begin)-1))
+{
+  d<-CNE_dist(CNE_chr15$begin[i],CNE_chr15$end[i],CNE_chr15$begin[i+1],CNE_chr15$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr15<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr15[(which(S_NS_chr15$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr15",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr15_fit.png",dpi = 300)
+
+y<-log(S_NS_chr15[(which(S_NS_chr15$S>=100)),]$NS)
+x<-log(S_NS_chr15[(which(S_NS_chr15$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[15]<-fit$coefficients[1]
+k[15]<-fit$coefficients[2]
+
+CNE_chr15$length<-(CNE_chr15$end-CNE_chr15$begin)
+length_CNE_chr15<-sum(CNE_chr15$length)
+num_CNE_chr15<-length(CNE_chr15$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr15"),]$length - length_CNE_chr15 + 1), num_CNE_chr15)
+begin<-fragment_positions
+end<-begin+CNE_chr15$length
+length<-CNE_chr15$length
+mid<-0.5*(begin+end)
+random_CNE_chr15<-data.frame(begin,end,length,mid)
+
+random_CNE_chr15<-random_CNE_chr15[order(random_CNE_chr15$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr15$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr15$begin[i],random_CNE_chr15$end[i],random_CNE_chr15$begin[i+1],random_CNE_chr15$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr15<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr15[(which(S_NS_random_chr15$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 15",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr15_random.png",dpi = 300)
+
+x<-S_NS_chr15[(which(S_NS_chr15$S>=100)),]$S
+y1<-S_NS_chr15[(which(S_NS_chr15$S>=100)),]$NS
+y2<-S_NS_random_chr15[(which(S_NS_random_chr15$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 15")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr15_combined.png",dpi = 300)
+```
+
+### chr16
+```{r}
+CNE_chr16<-gerp_CNE[which(gerp_CNE$chr=="chr16"),]
+mid<-0.5*(CNE_chr16$end+CNE_chr16$begin)
+CNE_chr16<-CNE_chr16 %>%
+  mutate(mid=mid)
+CNE_chr16<-CNE_chr16[order(CNE_chr16$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr16$begin)-1))
+{
+  d<-CNE_dist(CNE_chr16$begin[i],CNE_chr16$end[i],CNE_chr16$begin[i+1],CNE_chr16$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr16<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr16[(which(S_NS_chr16$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr16",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr16_fit.png",dpi = 300)
+
+y<-log(S_NS_chr16[(which(S_NS_chr16$S>=100)),]$NS)
+x<-log(S_NS_chr16[(which(S_NS_chr16$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[16]<-fit$coefficients[1]
+k[16]<-fit$coefficients[2]
+
+CNE_chr16$length<-(CNE_chr16$end-CNE_chr16$begin)
+length_CNE_chr16<-sum(CNE_chr16$length)
+num_CNE_chr16<-length(CNE_chr16$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr16"),]$length - length_CNE_chr16 + 1), num_CNE_chr16)
+begin<-fragment_positions
+end<-begin+CNE_chr16$length
+length<-CNE_chr16$length
+mid<-0.5*(begin+end)
+random_CNE_chr16<-data.frame(begin,end,length,mid)
+
+random_CNE_chr16<-random_CNE_chr16[order(random_CNE_chr16$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr16$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr16$begin[i],random_CNE_chr16$end[i],random_CNE_chr16$begin[i+1],random_CNE_chr16$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr16<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr16[(which(S_NS_random_chr16$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 16",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr16_random.png",dpi = 300)
+
+x<-S_NS_chr16[(which(S_NS_chr16$S>=100)),]$S
+y1<-S_NS_chr16[(which(S_NS_chr16$S>=100)),]$NS
+y2<-S_NS_random_chr16[(which(S_NS_random_chr16$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 16")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr16_combined.png",dpi = 300)
+```
+
+### chr17
+```{r}
+CNE_chr17<-gerp_CNE[which(gerp_CNE$chr=="chr17"),]
+mid<-0.5*(CNE_chr17$end+CNE_chr17$begin)
+CNE_chr17<-CNE_chr17 %>%
+  mutate(mid=mid)
+CNE_chr17<-CNE_chr17[order(CNE_chr17$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr17$begin)-1))
+{
+  d<-CNE_dist(CNE_chr17$begin[i],CNE_chr17$end[i],CNE_chr17$begin[i+1],CNE_chr17$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr17<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr17[(which(S_NS_chr17$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr17",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr17_fit.png",dpi = 300)
+
+y<-log(S_NS_chr17[(which(S_NS_chr17$S>=100)),]$NS)
+x<-log(S_NS_chr17[(which(S_NS_chr17$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[17]<-fit$coefficients[1]
+k[17]<-fit$coefficients[2]
+
+CNE_chr17$length<-(CNE_chr17$end-CNE_chr17$begin)
+length_CNE_chr17<-sum(CNE_chr17$length)
+num_CNE_chr17<-length(CNE_chr17$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr17"),]$length - length_CNE_chr17 + 1), num_CNE_chr17)
+begin<-fragment_positions
+end<-begin+CNE_chr17$length
+length<-CNE_chr17$length
+mid<-0.5*(begin+end)
+random_CNE_chr17<-data.frame(begin,end,length,mid)
+
+random_CNE_chr17<-random_CNE_chr17[order(random_CNE_chr17$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr17$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr17$begin[i],random_CNE_chr17$end[i],random_CNE_chr17$begin[i+1],random_CNE_chr17$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr17<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr17[(which(S_NS_random_chr17$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 17",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr17_random.png",dpi = 300)
+
+x<-S_NS_chr17[(which(S_NS_chr17$S>=100)),]$S
+y1<-S_NS_chr17[(which(S_NS_chr17$S>=100)),]$NS
+y2<-S_NS_random_chr17[(which(S_NS_random_chr17$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 17")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr17_combined.png",dpi = 300)
+```
+
+### chr18
+```{r}
+CNE_chr18<-gerp_CNE[which(gerp_CNE$chr=="chr18"),]
+mid<-0.5*(CNE_chr18$end+CNE_chr18$begin)
+CNE_chr18<-CNE_chr18 %>%
+  mutate(mid=mid)
+CNE_chr18<-CNE_chr18[order(CNE_chr18$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr18$begin)-1))
+{
+  d<-CNE_dist(CNE_chr18$begin[i],CNE_chr18$end[i],CNE_chr18$begin[i+1],CNE_chr18$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr18<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr18[(which(S_NS_chr18$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr18",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr18_fit.png",dpi = 300)
+
+y<-log(S_NS_chr18[(which(S_NS_chr18$S>=100)),]$NS)
+x<-log(S_NS_chr18[(which(S_NS_chr18$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[18]<-fit$coefficients[1]
+k[18]<-fit$coefficients[2]
+
+CNE_chr18$length<-(CNE_chr18$end-CNE_chr18$begin)
+length_CNE_chr18<-sum(CNE_chr18$length)
+num_CNE_chr18<-length(CNE_chr18$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr18"),]$length - length_CNE_chr18 + 1), num_CNE_chr18)
+begin<-fragment_positions
+end<-begin+CNE_chr18$length
+length<-CNE_chr18$length
+mid<-0.5*(begin+end)
+random_CNE_chr18<-data.frame(begin,end,length,mid)
+
+random_CNE_chr18<-random_CNE_chr18[order(random_CNE_chr18$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr18$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr18$begin[i],random_CNE_chr18$end[i],random_CNE_chr18$begin[i+1],random_CNE_chr18$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr18<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr18[(which(S_NS_random_chr18$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 18",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr18_random.png",dpi = 300)
+
+x<-S_NS_chr18[(which(S_NS_chr18$S>=100)),]$S
+y1<-S_NS_chr18[(which(S_NS_chr18$S>=100)),]$NS
+y2<-S_NS_random_chr18[(which(S_NS_random_chr18$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 18")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr18_combined.png",dpi = 300)
+```
+
+### chr19
+```{r}
+CNE_chr19<-gerp_CNE[which(gerp_CNE$chr=="chr19"),]
+mid<-0.5*(CNE_chr19$end+CNE_chr19$begin)
+CNE_chr19<-CNE_chr19 %>%
+  mutate(mid=mid)
+CNE_chr19<-CNE_chr19[order(CNE_chr19$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chr19$begin)-1))
+{
+  d<-CNE_dist(CNE_chr19$begin[i],CNE_chr19$end[i],CNE_chr19$begin[i+1],CNE_chr19$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chr19<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chr19[(which(S_NS_chr19$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chr19",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chr19_fit.png",dpi = 300)
+
+y<-log(S_NS_chr19[(which(S_NS_chr19$S>=100)),]$NS)
+x<-log(S_NS_chr19[(which(S_NS_chr19$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[19]<-fit$coefficients[1]
+k[19]<-fit$coefficients[2]
+
+CNE_chr19$length<-(CNE_chr19$end-CNE_chr19$begin)
+length_CNE_chr19<-sum(CNE_chr19$length)
+num_CNE_chr19<-length(CNE_chr19$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chr19"),]$length - length_CNE_chr19 + 1), num_CNE_chr19)
+begin<-fragment_positions
+end<-begin+CNE_chr19$length
+length<-CNE_chr19$length
+mid<-0.5*(begin+end)
+random_CNE_chr19<-data.frame(begin,end,length,mid)
+
+random_CNE_chr19<-random_CNE_chr19[order(random_CNE_chr19$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chr19$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chr19$begin[i],random_CNE_chr19$end[i],random_CNE_chr19$begin[i+1],random_CNE_chr19$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chr19<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chr19[(which(S_NS_random_chr19$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome 19",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chr19_random.png",dpi = 300)
+
+x<-S_NS_chr19[(which(S_NS_chr19$S>=100)),]$S
+y1<-S_NS_chr19[(which(S_NS_chr19$S>=100)),]$NS
+y2<-S_NS_random_chr19[(which(S_NS_random_chr19$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 19")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chr19_combined.png",dpi = 300)
+```
+
+### chrX
+```{r}
+CNE_chrX<-gerp_CNE[which(gerp_CNE$chr=="chrX"),]
+mid<-0.5*(CNE_chrX$end+CNE_chrX$begin)
+CNE_chrX<-CNE_chrX %>%
+  mutate(mid=mid)
+CNE_chrX<-CNE_chrX[order(CNE_chrX$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chrX$begin)-1))
+{
+  d<-CNE_dist(CNE_chrX$begin[i],CNE_chrX$end[i],CNE_chrX$begin[i+1],CNE_chrX$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chrX<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chrX[(which(S_NS_chrX$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chrX",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chrX_fit.png",dpi = 300)
+
+y<-log(S_NS_chrX[(which(S_NS_chrX$S>=100)),]$NS)
+x<-log(S_NS_chrX[(which(S_NS_chrX$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[20]<-fit$coefficients[1]
+k[20]<-fit$coefficients[2]
+
+CNE_chrX$length<-(CNE_chrX$end-CNE_chrX$begin)
+length_CNE_chrX<-sum(CNE_chrX$length)
+num_CNE_chrX<-length(CNE_chrX$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chrX"),]$length - length_CNE_chrX + 1), num_CNE_chrX)
+begin<-fragment_positions
+end<-begin+CNE_chrX$length
+length<-CNE_chrX$length
+mid<-0.5*(begin+end)
+random_CNE_chrX<-data.frame(begin,end,length,mid)
+
+random_CNE_chrX<-random_CNE_chrX[order(random_CNE_chrX$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chrX$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chrX$begin[i],random_CNE_chrX$end[i],random_CNE_chrX$begin[i+1],random_CNE_chrX$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chrX<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chrX[(which(S_NS_random_chrX$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome X",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chrX_random.png",dpi = 300)
+
+x<-S_NS_chrX[(which(S_NS_chrX$S>=100)),]$S
+y1<-S_NS_chrX[(which(S_NS_chrX$S>=100)),]$NS
+y2<-S_NS_random_chrX[(which(S_NS_random_chrX$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome X")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chrX_combined.png",dpi = 300)
+```
+
+### chrY
+```{r}
+CNE_chrY<-gerp_CNE[which(gerp_CNE$chr=="chrY"),]
+mid<-0.5*(CNE_chrY$end+CNE_chrY$begin)
+CNE_chrY<-CNE_chrY %>%
+  mutate(mid=mid)
+CNE_chrY<-CNE_chrY[order(CNE_chrY$mid),]
+dist<-c(0)
+for(i in 1:(length(CNE_chrY$begin)-1))
+{
+  d<-CNE_dist(CNE_chrY$begin[i],CNE_chrY$end[i],CNE_chrY$begin[i+1],CNE_chrY$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+dens<-function(x)
+{
+  dst<-length(dist1[which(dist1>=x-5 & dist1<x+5)])
+  return(dst)
+}
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_chrY<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_chrY[(which(S_NS_chrY$S>=100)),],aes(S,NS))
+p2+geom_point()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2+geom_point()+scale_x_log10()+scale_y_log10()+geom_smooth(method = "lm")+labs(title ="Logarithmic graph of intergenic distance of CNEs on chrY",x="Intergenic distance of CNEs",y="Number of CNE pairs")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title.x = element_text(size = 20),  # X轴标题字体大小
+    axis.title.y = element_text(size = 20),  # Y轴标题字体大小
+    axis.text.x = element_text(size = 16),# X轴坐标轴刻度字体大小
+    axis.text.y = element_text(size = 16),plot.title = element_text(size = 16, hjust = 0.5) )   # Y轴坐标轴刻度字体大小)
+ggsave("./Fit/chrY_fit.png",dpi = 300)
+
+y<-log(S_NS_chrY[(which(S_NS_chrY$S>=100)),]$NS)
+x<-log(S_NS_chrY[(which(S_NS_chrY$S>=100)),]$S)
+summary(lm(y~x))
+
+fit<-summary(lm(y~x))
+b[21]<-fit$coefficients[1]
+k[21]<-fit$coefficients[2]
+
+CNE_chrY$length<-(CNE_chrY$end-CNE_chrY$begin)
+length_CNE_chrY<-sum(CNE_chrY$length)
+num_CNE_chrY<-length(CNE_chrY$length)
+set.seed(100)  # 设置随机种子
+fragment_positions <- sample(1:(chr_length[which(chr_length$chr=="chrY"),]$length - length_CNE_chrY + 1), num_CNE_chrY)
+begin<-fragment_positions
+end<-begin+CNE_chrY$length
+length<-CNE_chrY$length
+mid<-0.5*(begin+end)
+random_CNE_chrY<-data.frame(begin,end,length,mid)
+
+random_CNE_chrY<-random_CNE_chrY[order(random_CNE_chrY$mid),]
+dist<-c(0)
+for(i in 1:(length(random_CNE_chrY$begin)-1))
+{
+  d<-CNE_dist(random_CNE_chrY$begin[i],random_CNE_chrY$end[i],random_CNE_chrY$begin[i+1],random_CNE_chrY$end[i+1])
+  dist<-c(dist,d)
+}
+dist1<-dist[which(dist<=1000)]
+x<-seq(from=5,by=10,length=100)
+ds<-rep(0,100)
+for(i in 1:100)
+{
+  ds[i]<-dens(x[i])
+}
+S_NS_random_chrY<-data.frame(S=x,NS=ds)
+
+p2<-ggplot(S_NS_random_chrY[(which(S_NS_random_chrY$S>=100)),],aes(S,NS))
+p2.random<-p2+scale_x_log10()+scale_y_log10()+geom_smooth(color="red")+labs(title ="Logarithmic graph of S and N(S) for a random CNE on chromosome Y",x="S",y="N(S)")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.random
+ggsave("./Fit/chrY_random.png",dpi = 300)
+
+x<-S_NS_chrY[(which(S_NS_chrY$S>=100)),]$S
+y1<-S_NS_chrY[(which(S_NS_chrY$S>=100)),]$NS
+y2<-S_NS_random_chrY[(which(S_NS_random_chrY$S>=100)),]$NS
+
+data <- data.frame(x = rep(x, 2), y = c(y1, y2), group = rep(c("Real", "Random"), each = length(x)))
+
+# 绘制拟合曲线图
+p2.combined<-ggplot(data, aes(x = x, y = y, color = group)) + scale_x_log10()+scale_y_log10()+geom_smooth() +
+  labs(title = "Logarithmic graph of S and N(S) for real and random CNE on chromosome 3")+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black"))
+p2.combined
+ggsave("./Fit/chrY_combined.png",dpi = 300)
+```
+
+### 总结
+```{r}
+Fit_S_NS<-data.frame(k,b)
+write.table(Fit_S_NS,"Fit.csv",row.names=FALSE,col.names=TRUE,sep=",")
+```
+
+```{r}
+Fit_S_NS<-read.csv("Fit.csv",head=T)
+```
+
+```{r}
+png("k_fit.png", width = 400, height = 600)
+boxplot(Fit_S_NS$k, main="The parameter k in the logarithmic linear fitting", 
+        ylab="Density", 
+        col="lightblue", 
+        border="black")
+dev.off() 
+```
+
+```{r}
+png("b_fit.png", width = 400, height = 600)
+boxplot(Fit_S_NS$k, main="The parameter b in the logarithmic linear fitting", 
+        ylab="Density", 
+        col="lightblue", 
+        border="black")
+dev.off() 
+```
+
+
+```{r}
+Fit_S_NS<-read.csv("Fit.csv",head=T)
+Fit_S_NS<-Fit_S_NS[1:20,]
+df1<-data.frame(x=rep("k",20),y=Fit_S_NS$k)
+df2<-data.frame(x=rep("b",20),y=Fit_S_NS$b)
+pk<-ggplot(df1,aes(x=x,y=y))+geom_boxplot()+xlab(NULL)+ylab(NULL)
+pk
+ggsave("./Fit/k.png",dpi = 300)
+pb<-ggplot(df2,aes(x=x,y=y))+geom_boxplot()+xlab(NULL)+ylab(NULL)
+pb
+ggsave("./Fit/b.png",dpi = 300)
+```
+
+
+
+
+
+## Interpreted CNE
+```{r}
+overlap_GERP<-read.table("overlap_CNE_RE_GERP.bed")
+overlap_phast<-read.table("overlap_CNE_RE_phast.bed")
+```
+
+### 1bp overlap GERP
+```{r}
+unique_rows <- unique(overlap_GERP[, 1:3])  # 提取数据框中的前三列并找出唯一行
+num_Interpreted_CNE_GERP_1bp <- nrow(unique_rows)
+num_CNE_GERP<- nrow(unique(gerp_CNE))
+ratio_GERP_1bp<-num_Interpreted_CNE_GERP_1bp/num_CNE_GERP
+```
+
+### 1bp overlap phast
+```{r}
+unique_rows <- unique(overlap_phast[, 1:3])  # 提取数据框中的前三列并找出唯一行
+num_Interpreted_CNE_phast_1bp <- nrow(unique_rows)
+num_CNE_phast<- nrow(unique(phast_CNE))
+ratio_phast_1bp<-num_Interpreted_CNE_phast_1bp/num_CNE_phast
+```
+
+### 10% overlap GERP
+```{r}
+overlap_GERP_10p<-overlap_GERP[(which(overlap_GERP$V8>=0.1*(overlap_GERP$V7-overlap_GERP$V6))),]
+unique_rows <- unique(overlap_GERP_10p[, 1:3])  # 提取数据框中的前三列并找出唯一行
+num_Interpreted_CNE_GERP_10p <- nrow(unique_rows)
+ratio_GERP_10p<-num_Interpreted_CNE_GERP_10p/num_CNE_GERP
+```
+
+### 10% overlap phast
+```{r}
+overlap_phast_10p<-overlap_GERP[(which(overlap_phast$V9>=0.1*(overlap_phast$V8-overlap_phast$V7))),]
+unique_rows <- unique(overlap_phast_10p[, 1:3])  # 提取数据框中的前三列并找出唯一行
+num_Interpreted_CNE_phast_10p <- nrow(unique_rows)
+ratio_phast_10p<-num_Interpreted_CNE_phast_10p/num_CNE_phast
+```
+
+### Summary
+```{r}
+Ratio<-data.frame(Type=c("GERP(1bp)","phastCons(1bp)","GERP(10%)","phastCons(10%)"),CNE=c(num_CNE_GERP,num_CNE_phast,num_CNE_GERP,num_CNE_phast),Interpreted_CNE=c(num_Interpreted_CNE_GERP_1bp,num_Interpreted_CNE_phast_1bp,num_Interpreted_CNE_GERP_10p,num_Interpreted_CNE_phast_10p),ratio=c(ratio_GERP_1bp,ratio_phast_1bp,ratio_GERP_10p,ratio_phast_10p))
+Ratio
+```
+
+
+## active_CNE
+
+
+
